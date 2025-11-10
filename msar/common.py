@@ -165,11 +165,18 @@ def get_timerange(force_single: bool = False) -> tuple[str, str | date, str | da
 # Table printer for accounts
 # -----------------------------
 def print_accounts_table(items):
-    """Use tabulate instead of rich."""
-    headers = ["Account Name", "Account ID", "Customer ID", "Account Number"]
-    rows = [
-        [i["account_name"], i["account_id"], i["parent_customer_id"], i["number"]]
-        for i in items
-    ]
+    """Display accounts with index numbers for user selection."""
+
+    headers = ["#", "Account Name", "Account ID", "Customer ID", "Account Number"]
+    table_data = []
+    for idx, it in enumerate(items, start=1):
+        table_data.append([
+            idx,
+            it["account_name"],
+            str(it["account_id"]),
+            str(it["parent_customer_id"]),
+            it["number"] or ""
+        ])
+
     print("\nMicrosoft Ads - Managed Accounts\n")
-    print(tabulate(rows, headers=headers, tablefmt="simple_grid"))
+    print(tabulate(table_data, headers=headers, tablefmt="rounded_outline"))

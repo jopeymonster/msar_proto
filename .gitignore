@@ -36,6 +36,7 @@ systools/
 # Folders that might appear
 .Spotlight-V100
 .Trashes
+/output/
 
 # Temporary files
 *.swp
@@ -71,7 +72,6 @@ venv.bak/
 .venv/
 .env
 .venv
-gads/   # added: your named venv
 
 # PyInstaller
 *.manifest
