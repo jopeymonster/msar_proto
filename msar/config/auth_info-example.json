@@ -1,0 +1,8 @@
+{
+    "developer_token": "BBD37VB98",
+    "environment": "sandbox",
+    "client_id": "00001111-aaaa-2222-bbbb-3333cccc4444",
+    "client_state":  "I_AM_THE_WALRUS",
+    "redirect_uri": "https://login.microsoftonline.com/common/oauth2/nativeclient",
+    "refresh_token": ""
+}
