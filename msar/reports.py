@@ -3,8 +3,10 @@
 
 from __future__ import annotations
 import csv
+from csv import writer
+import time
 from pathlib import Path
-from typing import Iterable, List, Tuple, Optional, Dict
+from typing import Iterable, List, Tuple, Optional, Dict, TypedDict
 
 from bingads.authorization import AuthorizationData
 from bingads.service_client import ServiceClient
@@ -92,9 +94,9 @@ def run_campaign_performance_report(
     Downloads Campaign Performance CSVs for one or more accounts,
     logs progress per account, combines all valid results into one file.
     """
-    from csv import writer
-    import time
 
+    if authorization_data.authentication is None:
+        raise ValueError("authorization_data.authentication cannot be None")
     env = authorization_data.authentication.environment
     svc_mgr = ReportingServiceManager(
         authorization_data=authorization_data,
@@ -103,6 +105,9 @@ def run_campaign_performance_report(
     )
 
     def _split(d: str) -> Tuple[int, int, int]:
+        """
+        Removes hyphen from date input for processing.
+        """
         ds = d.replace("-", "")
         return (int(ds[0:4]), int(ds[4:6]), int(ds[6:8]))
 
