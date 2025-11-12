@@ -142,7 +142,7 @@ def get_timerange(force_single: bool = False) -> tuple[str, str | date, str | da
     if force_single:
         date_opt = "Specific date"
         print("The report you selected only accepts a single date.")
-        spec_date_input = input("Enter the date (YYYY-MM-DD) or press ENTER for today: ").strip()
+        spec_date_input = input("Enter the date (YYYY-MM-DD or YYYYMMDD) or leave blank and press ENTER: ").strip()
         spec_date = validate_date_input(spec_date_input, default_today=True)
         return date_opt, spec_date, spec_date, "date"
 
@@ -153,8 +153,8 @@ def get_timerange(force_single: bool = False) -> tuple[str, str | date, str | da
         spec_date = validate_date_input(input("Date (YYYY-MM-DD): ").strip(), default_today=True)
         return date_opt, spec_date, spec_date, "date"
     elif opt == "2":
-        start = validate_date_input(input("Start Date: ").strip(), default_today=True)
-        end = validate_date_input(input("End Date: ").strip(), default_today=True)
+        start = validate_date_input(input("Enter the Start Date (YYYY-MM-DD or YYYYMMDD)\nor leave blank and press ENTER for today:  ").strip(), default_today=True)
+        end = validate_date_input(input("Enter the End Date (YYYY-MM-DD or YYYYMMDD)\nor leave blank and press ENTER for today:  ").strip(), default_today=True)
         return "Date range", start, end, "date"
     else:
         print("Invalid option.")
