@@ -180,7 +180,6 @@ def run_campaign_performance_report(
         w.writerow(all_headers)
         w.writerows(all_rows)
 
-    print(f"\nCombined report written to: {csv_path}")
     return csv_path
 
 

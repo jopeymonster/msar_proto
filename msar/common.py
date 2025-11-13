@@ -85,6 +85,7 @@ def data_handling_options(
     headers,
     auto_view: bool = False,
     preselected_output: Optional[str] = None,
+    saved_report_path: Optional[Path] = None,
 ) -> None:
     if not table_data or not headers:
         print("No data to display.")
@@ -96,6 +97,12 @@ def data_handling_options(
         report_view = input("Choose 1 or 2 ('exit' to quit): ").strip().lower()
 
     if report_view in ("1", "csv"):
+        if saved_report_path:
+            print(f"\nReport already saved to: {saved_report_path}")
+            save_extra = input("Would you like to save another copy? (y/N): ").strip().lower()
+            if save_extra not in ("y", "yes"):
+                print("Skipping additional CSV export.")
+                return
         save_csv(table_data, headers)
     elif report_view in ("2", "table"):
         display_table(table_data, headers)
@@ -110,6 +117,7 @@ def data_handling_options(
 # Date utilities (unchanged)
 # -----------------------------
 SUPPORTED_DATE_FORMATS = ("%Y-%m-%d", "%Y%m%d")
+
 def parse_supported_date(date_str: str) -> date:
     for fmt in SUPPORTED_DATE_FORMATS:
         try:
@@ -118,47 +126,62 @@ def parse_supported_date(date_str: str) -> date:
             continue
     raise ValueError(f"Unsupported date format: {date_str}")
 
-def validate_date_input(date_str: Optional[str], default_today: bool = False) -> Optional[str]:
+def validate_date_input(date_str: Optional[str], default_today: bool = False) -> Optional[date]:
     if not date_str:
         if default_today:
-            today_str = date.today().strftime("%Y-%m-%d")
-            print(f"No date entered. Defaulting to today's date: {today_str}")
-            return today_str
+            today = date.today()
+            print(f"No date entered. Defaulting to today's date: {today}")
+            return today
         print("Invalid date format. Use YYYY-MM-DD or YYYYMMDD.")
         return None
     try:
-        parse_supported_date(date_str)
-        return date_str
+        return parse_supported_date(date_str)
     except ValueError:
         print("Invalid date format. Use YYYY-MM-DD or YYYYMMDD.")
         return None
+
+def _prompt_for_date(prompt: str, default_today: bool = False) -> date:
+    while True:
+        entered = input(prompt).strip()
+        parsed = validate_date_input(entered, default_today=default_today)
+        if parsed is not None:
+            return parsed
 
 def get_last30days() -> tuple[str, date, date, str]:
     today = date.today()
     return "Date range", today - timedelta(days=30), today - timedelta(days=1), "date"
 
-def get_timerange(force_single: bool = False) -> tuple[str, str | date, str | date, str]:
+def get_timerange(force_single: bool = False) -> tuple[str, date, date, str]:
     """Prompt for a single date or range, with validation."""
     if force_single:
         date_opt = "Specific date"
         print("The report you selected only accepts a single date.")
-        spec_date_input = input("Enter the date (YYYY-MM-DD) or press ENTER for today: ").strip()
-        spec_date = validate_date_input(spec_date_input, default_today=True)
+        spec_date = _prompt_for_date(
+            "Enter the date (YYYY-MM-DD or YYYYMMDD) or press ENTER for today: ",
+            default_today=True,
+        )
         return date_opt, spec_date, spec_date, "date"
 
     print("Reporting time range:\n1. Specific date\n2. Range of dates\n")
     opt = input("Enter 1 or 2: ").strip()
     if opt == "1":
         date_opt = "Specific date"
-        spec_date = validate_date_input(input("Date (YYYY-MM-DD): ").strip(), default_today=True)
+        spec_date = _prompt_for_date("Date (YYYY-MM-DD or YYYYMMDD): ", default_today=True)
         return date_opt, spec_date, spec_date, "date"
-    elif opt == "2":
-        start = validate_date_input(input("Start Date: ").strip(), default_today=True)
-        end = validate_date_input(input("End Date: ").strip(), default_today=True)
+    if opt == "2":
+        start = _prompt_for_date(
+            "Enter the Start Date (YYYY-MM-DD or YYYYMMDD) or press ENTER for today: ",
+            default_today=True,
+        )
+        end = _prompt_for_date(
+            "Enter the End Date (YYYY-MM-DD or YYYYMMDD) or press ENTER for today: ",
+            default_today=True,
+        )
         return "Date range", start, end, "date"
-    else:
-        print("Invalid option.")
-        return "Date range", date.today(), date.today(), "date"
+    
+    print("Invalid option. Defaulting to today's date.")
+    today = date.today()
+    return "Date range", today, today, "date"
 
 
 # -----------------------------

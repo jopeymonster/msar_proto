@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 import argparse
+from csv import writer
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict
@@ -49,12 +50,68 @@ def select_accounts(accounts: List[Dict], cli_arg: str | None) -> List[int]:
         print("Invalid selection. Please try again.")
 
 
+def handle_report_outputs(
+        raw_path: Path,
+        headers: List[str],
+        rows: List[List[str]],
+        clean_mode: str | None,
+        auto_view: bool,
+) -> None:
+    """Save report files and present post-processing options based on --clean mode.
+
+    The clean_mode flag accepts three values:
+    - "both": keep the downloaded raw CSV and write a cleaned version.
+    - "exclude": keep only the raw CSV, matching the default CLI behavior.
+    - "only": write the cleaned CSV then remove the raw download.
+    """
+    mode = clean_mode or "exclude"
+    explicit_mode = clean_mode is not None
+    clean_path = raw_path.with_name(f"{raw_path.stem}_CLEAN.csv")
+    raw_saved = mode in ("both", "exclude")
+    clean_saved = mode in ("both", "only")
+
+    if clean_saved:
+        with clean_path.open("w", newline="", encoding="utf-8") as file:
+            w = writer(file)
+            w.writerow(headers)
+            w.writerows(rows)
+
+    if raw_saved:
+        print(f"\nRaw report saved to: {raw_path}")
+    else:
+        raw_path.unlink(missing_ok=True)
+        print(f"\nRaw report excluded per execution option:\n {raw_path}\n")
+
+    preferred_path = clean_path if clean_saved else raw_path
+
+    if clean_saved:
+        print(f"Cleaned report saved to:\n {clean_path}\n")
+    elif mode == "exclude" and explicit_mode:
+        print("Cleaned report excluded per execution option.")
+    
+    data_handling_options(
+        rows,
+        headers,
+        auto_view=auto_view,
+        preselected_output="auto" if auto_view else None,
+        saved_report_path=preferred_path,
+    )
+
 def main():
     parser = argparse.ArgumentParser(prog="MSAdsReporter", description="Microsoft Ads Reporting CLI")
     parser.add_argument("--config", required=True, help="Path to config/auth_info.json")
     parser.add_argument("--account", help="Specify account ID or 'all'")
     parser.add_argument("--auto", action="store_true", help="Auto-view results without prompts")
-    parser.add_argument("--clean", action="store_true", help="Only display or save cleaned report output")
+    parser.add_argument(
+        "--clean", 
+        choices=("both","exclude","only"),
+        default="only",
+        help=(
+            "Controls report handling: 'both' saves raw and cleaned report files, "
+            "'exclude' keeps only the raw file, 'only' keeps only the clean file."
+            "\nDefault is 'only' to generate a clean report."
+        ),
+    )
     args = parser.parse_args()
 
     # --- Authenticate ---
@@ -80,8 +137,8 @@ def main():
 
     # --- Date range ---
     _, start_date, end_date, seg_key = get_timerange(force_single=False)
-    start_date = str(start_date).replace("/", "-")
-    end_date = str(end_date).replace("/", "-")
+    start_date_str = start_date.isoformat()
+    end_date_str = end_date.isoformat()
 
     # --- Output setup ---
     out_dir = Path.cwd() / "output"
@@ -96,9 +153,9 @@ def main():
 
     out_csv = run_campaign_performance_report(
         authorization_data=authorization_data,
-        account_list=selected_account_objs,  # pass full objects
-        start_date_str=start_date,
-        end_date_str=end_date,
+        account_list=selected_account_objs,
+        start_date_str=start_date_str,
+        end_date_str=end_date_str,
         seg_key=seg_key,
         out_dir=out_dir,
         file_name=base_filename,
@@ -110,21 +167,13 @@ def main():
         return
 
     # --- Output ---
-    if args.clean:
-        clean_name = base_filename.replace(".csv", "_CLEAN.csv")
-        clean_path = out_dir / clean_name
-
-        from csv import writer
-        with clean_path.open("w", newline="", encoding="utf-8") as f:
-            w = writer(f)
-            w.writerow(headers)
-            w.writerows(rows)
-
-        print(f"Cleaned report saved to: {clean_path}")
-        data_handling_options(rows, headers, auto_view=args.auto, preselected_output="auto" if args.auto else None)
-    else:
-        print(f"\nRaw report saved to: {out_csv}\n")
-        data_handling_options(rows, headers, auto_view=args.auto, preselected_output="auto" if args.auto else None)
+    handle_report_outputs(
+        raw_path=out_csv,
+        headers=headers,
+        rows=rows,
+        clean_mode=args.clean,
+        auto_view=args.auto,
+    )
 
     print("\nAll requested reports complete.\n")
 
