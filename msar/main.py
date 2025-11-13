@@ -82,6 +82,8 @@ def handle_report_outputs(
         raw_path.unlink(missing_ok=True)
         print(f"\nRaw report excluded per execution option:\n {raw_path}\n")
 
+    preferred_path = clean_path if clean_saved else raw_path
+
     if clean_saved:
         print(f"Cleaned report saved to:\n {clean_path}\n")
     elif mode == "exclude" and explicit_mode:
@@ -92,6 +94,7 @@ def handle_report_outputs(
         headers,
         auto_view=auto_view,
         preselected_output="auto" if auto_view else None,
+        saved_report_path=preferred_path,
     )
 
 def main():
@@ -134,8 +137,8 @@ def main():
 
     # --- Date range ---
     _, start_date, end_date, seg_key = get_timerange(force_single=False)
-    start_date = str(start_date).replace("/", "-")
-    end_date = str(end_date).replace("/", "-")
+    start_date_str = start_date.isoformat()
+    end_date_str = end_date.isoformat()
 
     # --- Output setup ---
     out_dir = Path.cwd() / "output"
@@ -151,8 +154,8 @@ def main():
     out_csv = run_campaign_performance_report(
         authorization_data=authorization_data,
         account_list=selected_account_objs,
-        start_date_str=start_date,
-        end_date_str=end_date,
+        start_date_str=start_date_str,
+        end_date_str=end_date_str,
         seg_key=seg_key,
         out_dir=out_dir,
         file_name=base_filename,
