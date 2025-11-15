@@ -1,178 +1,126 @@
 # -*- coding: utf-8 -*-
-# main.py
+# msar/main.py
 
 from __future__ import annotations
+
 import argparse
-from csv import writer
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict
 
-from auth import init_authorization
-from accounts import list_user_accounts
-from common import (
-    print_accounts_table,
-    get_timerange,
-    data_handling_options,
-)
-from reports import run_campaign_performance_report, load_report_rows
-
+# Import pattern allowing script OR package mode
+try:
+    from .auth import init_authorization
+    from .accounts import list_user_accounts
+    from .common import print_accounts_table, get_timerange, data_handling_options
+    from .reports import (
+        run_campaign_performance_report,
+        load_report_rows,
+        save_clean_report_only,
+    )
+except ImportError:
+    from auth import init_authorization
+    from accounts import list_user_accounts
+    from common import print_accounts_table, get_timerange, data_handling_options
+    from reports import (
+        run_campaign_performance_report,
+        load_report_rows,
+        save_clean_report_only,
+    )
 
 def select_accounts(accounts: List[Dict], cli_arg: str | None) -> List[int]:
-    """Determine selected account IDs from CLI flag or interactive prompt."""
+    """Return list of account_ids based on CLI or user prompt."""
     if cli_arg:
         cli_arg = cli_arg.strip().lower()
         if cli_arg == "all":
             return [a["account_id"] for a in accounts]
-        else:
-            try:
-                acc_id = int(cli_arg)
-                match = [a["account_id"] for a in accounts if a["account_id"] == acc_id]
-                if match:
-                    return match
-                print(f"No account with ID {acc_id} found. Defaulting to all.")
-                return [a["account_id"] for a in accounts]
-            except ValueError:
-                print("Invalid --account argument. Defaulting to all.")
-                return [a["account_id"] for a in accounts]
 
-    # Interactive selection
+        try:
+            acc_id = int(cli_arg)
+            ids = [a["account_id"] for a in accounts]
+            if acc_id in ids:
+                return [acc_id]
+            print(f"No account with ID {acc_id}. Defaulting to ALL.")
+        except ValueError:
+            print("Invalid --account value. Defaulting to ALL.")
+
+        return [a["account_id"] for a in accounts]
+
+    # interactive
     while True:
-        selection = input("\nEnter the number of an account to run, or 'all' for all accounts: ").strip().lower()
-        if selection in ("all", "a"):
+        choice = input("\nEnter account # or 'all': ").strip().lower()
+        if choice in ("all", "a"):
             return [a["account_id"] for a in accounts]
         try:
-            idx = int(selection)
-            if 1 <= idx <= len(accounts):
-                return [accounts[idx - 1]["account_id"]]
+            i = int(choice)
+            if 1 <= i <= len(accounts):
+                return [accounts[i - 1]["account_id"]]
         except ValueError:
             pass
-        print("Invalid selection. Please try again.")
-
-
-def handle_report_outputs(
-        raw_path: Path,
-        headers: List[str],
-        rows: List[List[str]],
-        clean_mode: str | None,
-        auto_view: bool,
-) -> None:
-    """Save report files and present post-processing options based on --clean mode.
-
-    The clean_mode flag accepts three values:
-    - "both": keep the downloaded raw CSV and write a cleaned version.
-    - "exclude": keep only the raw CSV, matching the default CLI behavior.
-    - "only": write the cleaned CSV then remove the raw download.
-    """
-    mode = clean_mode or "exclude"
-    explicit_mode = clean_mode is not None
-    clean_path = raw_path.with_name(f"{raw_path.stem}_CLEAN.csv")
-    raw_saved = mode in ("both", "exclude")
-    clean_saved = mode in ("both", "only")
-
-    if clean_saved:
-        with clean_path.open("w", newline="", encoding="utf-8") as file:
-            w = writer(file)
-            w.writerow(headers)
-            w.writerows(rows)
-
-    if raw_saved:
-        print(f"\nRaw report saved to: {raw_path}")
-    else:
-        raw_path.unlink(missing_ok=True)
-        print(f"\nRaw report excluded per execution option:\n {raw_path}\n")
-
-    preferred_path = clean_path if clean_saved else raw_path
-
-    if clean_saved:
-        print(f"Cleaned report saved to:\n {clean_path}\n")
-    elif mode == "exclude" and explicit_mode:
-        print("Cleaned report excluded per execution option.")
-    
-    data_handling_options(
-        rows,
-        headers,
-        auto_view=auto_view,
-        preselected_output="auto" if auto_view else None,
-        saved_report_path=preferred_path,
-    )
+        print("Invalid selection. Try again.")
 
 def main():
-    parser = argparse.ArgumentParser(prog="MSAdsReporter", description="Microsoft Ads Reporting CLI")
-    parser.add_argument("--config", required=True, help="Path to config/auth_info.json")
-    parser.add_argument("--account", help="Specify account ID or 'all'")
-    parser.add_argument("--auto", action="store_true", help="Auto-view results without prompts")
-    parser.add_argument(
-        "--clean", 
-        choices=("both","exclude","only"),
-        default="only",
-        help=(
-            "Controls report handling: 'both' saves raw and cleaned report files, "
-            "'exclude' keeps only the raw file, 'only' keeps only the clean file."
-            "\nDefault is 'only' to generate a clean report."
-        ),
-    )
+    parser = argparse.ArgumentParser(prog="MSAdsReporter")
+    parser.add_argument("--config", required=True)
+    parser.add_argument("--account")
+    parser.add_argument("--auto", action="store_true")
     args = parser.parse_args()
 
-    # --- Authenticate ---
+    # ---- Authenticate ----
     auth_path = Path(args.config)
     authorization_data, meta = init_authorization(auth_path)
-    print(f"\nAuthenticated. Environment: {meta['environment']}. Refresh token saved: {meta['has_refresh_token']}\n")
+    print(
+        f"\nAuthenticated. Environment: {meta['environment']} "
+        f"(refresh token saved: {meta['has_refresh_token']})\n"
+    )
 
-    # --- Get accounts ---
+    # ---- Accounts ----
     accounts = list_user_accounts(authorization_data)
-    if not accounts:
-        print("No accounts found for the current user.")
-        return
-
     print_accounts_table(accounts)
-    account_ids = select_accounts(accounts, args.account)
 
-    # --- Report selection (placeholder) ---
+    selected_ids = select_accounts(accounts, args.account)
+    selected_objs = [a for a in accounts if a["account_id"] in selected_ids]
+
+    # ---- Report selection ----
     print("\nAvailable Reports:\n1. Campaign Performance")
     choice = input("Enter report number (default 1): ").strip() or "1"
-    if choice != "1":
-        print("Only Campaign Performance is available currently.")
     print("Selected: Campaign Performance\n")
 
-    # --- Date range ---
-    _, start_date, end_date, seg_key = get_timerange(force_single=False)
-    start_date_str = start_date.isoformat()
-    end_date_str = end_date.isoformat()
+    # ---- Date selection ----
+    _, start_date_str, end_date_str, seg_key_ignored = get_timerange()
 
-    # --- Output setup ---
-    out_dir = Path.cwd() / "output"
+    # ---- Output dirs ----
+    out_dir = Path("output")
     out_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    base_filename = f"msar_campaign_performance_{timestamp}.csv"
 
-    # --- Run report for all selected accounts (single consolidated CSV) ---
-    selected_account_objs = [a for a in accounts if a["account_id"] in account_ids]
+    now = datetime.now().strftime("%Y%m%d_%H%M%S")
+    file_name = f"msar_campaign_performance_{now}.csv"
 
-    print(f"\nRunning Campaign Performance report for {len(selected_account_objs)} account(s)...\n")
+    print(f"\nRunning Campaign Performance report for {len(selected_objs)} account(s)...\n")
 
+    # ---- Run report ----
     out_csv = run_campaign_performance_report(
         authorization_data=authorization_data,
-        account_list=selected_account_objs,
+        account_list=selected_objs,
         start_date_str=start_date_str,
         end_date_str=end_date_str,
-        seg_key=seg_key,
         out_dir=out_dir,
-        file_name=base_filename,
+        file_name=file_name,
     )
 
     headers, rows = load_report_rows(out_csv)
     if not rows:
-        print("No data returned for the selected range.")
+        print("No data returned for selected range.")
         return
 
-    # --- Output ---
-    handle_report_outputs(
-        raw_path=out_csv,
+    clean_path = save_clean_report_only(out_csv, headers, rows)
+
+    data_handling_options(
+        table_data=rows,
         headers=headers,
-        rows=rows,
-        clean_mode=args.clean,
         auto_view=args.auto,
+        preselected_output="auto" if args.auto else None,
+        saved_report_path=clean_path,
     )
 
     print("\nAll requested reports complete.\n")

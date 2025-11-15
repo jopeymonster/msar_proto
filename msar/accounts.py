@@ -11,6 +11,8 @@ def list_user_accounts(authorization_data: AuthorizationData) -> List[Dict]:
     Returns a list of dicts:
       { 'account_id': int, 'account_name': str, 'parent_customer_id': int, 'number': str }
     """
+    if authorization_data.authentication is None:
+        raise ValueError("authorization_data.authentication cannot be None")
     env = authorization_data.authentication.environment
     customer_service = ServiceClient(
         service='CustomerManagementService',

@@ -3,7 +3,7 @@
 
 import json
 from pathlib import Path
-from typing import Tuple, Dict
+from typing import Tuple, Dict, cast
 
 from bingads.authorization import (
     AuthorizationData,
@@ -47,9 +47,9 @@ def init_authorization(auth_info_path: Path) -> Tuple[AuthorizationData, Dict]:
             response_uri = f.read().strip()
 
         oauth.request_oauth_tokens_by_response_uri(response_uri=response_uri)
-
+        auth_tokens = cast(OAuthTokens, oauth.oauth_tokens)
         # Persist refresh token for next runs
-        cfg["refresh_token"] = oauth.oauth_tokens.refresh_token
+        cfg["refresh_token"] = auth_tokens.refresh_token
         with auth_info_path.open("w", encoding="utf-8") as f:
             json.dump(cfg, f, indent=2)
 

@@ -151,8 +151,19 @@ def get_last30days() -> tuple[str, date, date, str]:
     today = date.today()
     return "Date range", today - timedelta(days=30), today - timedelta(days=1), "date"
 
-def get_timerange(force_single: bool = False) -> tuple[str, date, date, str]:
-    """Prompt for a single date or range, with validation."""
+def get_timerange(force_single: bool = False) -> tuple[str, str, str, str]:
+    """
+    Prompt for a single date or range of dates and ALWAYS return:
+        (label, start_date_str, end_date_str, seg_key)
+
+    Dates are normalized to 'YYYY-MM-DD' strings before returning.
+    """
+    def _normalize_date_obj(d):
+        if hasattr(d, "strftime"):
+            return d.strftime("%Y-%m-%d")
+        return str(d)
+
+    # forced single date
     if force_single:
         date_opt = "Specific date"
         print("The report you selected only accepts a single date.")
@@ -160,14 +171,23 @@ def get_timerange(force_single: bool = False) -> tuple[str, date, date, str]:
             "Enter the date (YYYY-MM-DD or YYYYMMDD) or press ENTER for today: ",
             default_today=True,
         )
-        return date_opt, spec_date, spec_date, "date"
+        nd = _normalize_date_obj(spec_date)
+        return date_opt, nd, nd, "date"
 
     print("Reporting time range:\n1. Specific date\n2. Range of dates\n")
     opt = input("Enter 1 or 2: ").strip()
+
+    # single date
     if opt == "1":
         date_opt = "Specific date"
-        spec_date = _prompt_for_date("Date (YYYY-MM-DD or YYYYMMDD): ", default_today=True)
-        return date_opt, spec_date, spec_date, "date"
+        spec_date = _prompt_for_date(
+            "Date (YYYY-MM-DD or YYYYMMDD): ",
+            default_today=True,
+        )
+        nd = _normalize_date_obj(spec_date)
+        return date_opt, nd, nd, "date"
+
+    # date range
     if opt == "2":
         start = _prompt_for_date(
             "Enter the Start Date (YYYY-MM-DD or YYYYMMDD) or press ENTER for today: ",
@@ -177,11 +197,13 @@ def get_timerange(force_single: bool = False) -> tuple[str, date, date, str]:
             "Enter the End Date (YYYY-MM-DD or YYYYMMDD) or press ENTER for today: ",
             default_today=True,
         )
-        return "Date range", start, end, "date"
-    
+        return "Date range", _normalize_date_obj(start), _normalize_date_obj(end), "date"
+
+    # fallback
     print("Invalid option. Defaulting to today's date.")
-    today = date.today()
-    return "Date range", today, today, "date"
+    today_str = date.today().strftime("%Y-%m-%d")
+    return "Date range", today_str, today_str, "date"
+
 
 
 # -----------------------------
