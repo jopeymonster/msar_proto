@@ -91,30 +91,47 @@ def data_handling_options(
         print("No data to display.")
         return
 
-    report_view = preselected_output
-    if not report_view:
-        print("How would you like to view the report?\n1. CSV\n2. Display table on screen\n")
-        report_view = input("Choose 1 or 2 ('exit' to quit): ").strip().lower()
+    mode = (preselected_output or "").strip().lower()
 
-    if report_view in ("1", "csv"):
-        if saved_report_path:
-            print(f"\nReport already saved to: {saved_report_path}")
-            save_extra = input("Would you like to save another copy? (y/N): ").strip().lower()
-            if save_extra not in ("y", "yes"):
-                print("Skipping additional CSV export.")
-                return
-        save_csv(table_data, headers)
-    elif report_view in ("2", "table"):
-        display_table(table_data, headers)
-    elif report_view == "auto":
+    # If no preselected mode, fall back to the original simple prompt.
+    if not mode:
+        print("How would you like to view the report?\n1. CSV\n2. Display table on screen\n")
+        choice = input("Choose 1 or 2 ('exit' to quit): ").strip().lower()
+        if choice in ("1", "csv"):
+            mode = "csv"
+        elif choice in ("2", "table"):
+            mode = "table"
+        else:
+            print("Invalid option.")
+            sys.exit(1)
+
+    if mode == "auto":
         display_table(table_data, headers, auto_view=True)
-    else:
-        print("Invalid option.")
-        sys.exit(1)
+        return
+
+    if mode == "csv":
+        if saved_report_path:
+            print(f"\nClean report saved to: {saved_report_path}")
+            return
+        save_csv(table_data, headers)
+        return
+
+    if mode == "table":
+        display_table(table_data, headers, auto_view=auto_view)
+        return
+
+    if mode == "both":
+        if saved_report_path:
+            print(f"\nClean report saved to: {saved_report_path}")
+        display_table(table_data, headers, auto_view=auto_view)
+        return
+
+    # Fallback: treat unknown mode as "table"
+    display_table(table_data, headers, auto_view=auto_view)
 
 
 # -----------------------------
-# Date utilities (unchanged)
+# Date utilities
 # -----------------------------
 SUPPORTED_DATE_FORMATS = ("%Y-%m-%d", "%Y%m%d")
 
@@ -166,7 +183,7 @@ def get_timerange(force_single: bool = False) -> tuple[str, str, str, str]:
     # forced single date
     if force_single:
         date_opt = "Specific date"
-        print("The report you selected only accepts a single date.")
+        print("\nThe report you selected only accepts a single date.")
         spec_date = _prompt_for_date(
             "Enter the date (YYYY-MM-DD or YYYYMMDD) or press ENTER for today: ",
             default_today=True,
@@ -174,7 +191,7 @@ def get_timerange(force_single: bool = False) -> tuple[str, str, str, str]:
         nd = _normalize_date_obj(spec_date)
         return date_opt, nd, nd, "date"
 
-    print("Reporting time range:\n1. Specific date\n2. Range of dates\n")
+    print("\nReporting time range:\n1. Specific date\n2. Range of dates")
     opt = input("Enter 1 or 2: ").strip()
 
     # single date
@@ -205,7 +222,6 @@ def get_timerange(force_single: bool = False) -> tuple[str, str, str, str]:
     return "Date range", today_str, today_str, "date"
 
 
-
 # -----------------------------
 # Table printer for accounts
 # -----------------------------
@@ -223,5 +239,5 @@ def print_accounts_table(items):
             it["number"] or ""
         ])
 
-    print("\nMicrosoft Ads - Managed Accounts\n")
+    print("Microsoft Ads - Managed Accounts\n")
     print(tabulate(table_data, headers=headers, tablefmt="rounded_outline"))

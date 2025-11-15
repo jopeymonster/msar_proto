@@ -28,6 +28,7 @@ except ImportError:
         save_clean_report_only,
     )
 
+
 def select_accounts(accounts: List[Dict], cli_arg: str | None) -> List[int]:
     """Return list of account_ids based on CLI or user prompt."""
     if cli_arg:
@@ -59,6 +60,7 @@ def select_accounts(accounts: List[Dict], cli_arg: str | None) -> List[int]:
             pass
         print("Invalid selection. Try again.")
 
+
 def main():
     parser = argparse.ArgumentParser(prog="MSAdsReporter")
     parser.add_argument("--config", required=True)
@@ -85,6 +87,23 @@ def main():
     print("\nAvailable Reports:\n1. Campaign Performance")
     choice = input("Enter report number (default 1): ").strip() or "1"
     print("Selected: Campaign Performance\n")
+
+    # ---- Output preference (before running reports) ----
+    if args.auto:
+        output_pref = "auto"
+    else:
+        print("How would you like to view the results when the report completes?")
+        print("1. Save as CSV")
+        print("2. Display table on screen")
+        print("3. Save CSV and display table")
+        view_choice = input("Choose 1, 2, or 3 (default 1): ").strip() or "1"
+
+        if view_choice == "2":
+            output_pref = "table"
+        elif view_choice == "3":
+            output_pref = "both"
+        else:
+            output_pref = "csv"
 
     # ---- Date selection ----
     _, start_date_str, end_date_str, seg_key_ignored = get_timerange()
@@ -118,8 +137,8 @@ def main():
     data_handling_options(
         table_data=rows,
         headers=headers,
-        auto_view=args.auto,
-        preselected_output="auto" if args.auto else None,
+        auto_view=(output_pref == "auto"),
+        preselected_output=output_pref,
         saved_report_path=clean_path,
     )
 

@@ -65,9 +65,8 @@ def _build_report_request(
     time.ReportTimeZone = "PacificTimeUSCanadaTijuana"
     req.Time = time
 
-    # ✅ Columns – this is the critical part
     cols = factory.create("ArrayOfCampaignPerformanceReportColumn")
-    cols.CampaignPerformanceReportColumn.append([
+    cols.CampaignPerformanceReportColumn = [
         "TimePeriod",
         "AccountId",
         "AccountName",
@@ -77,7 +76,7 @@ def _build_report_request(
         "Impressions",
         "Clicks",
         "Spend",
-    ])
+    ]
     req.Columns = cols
 
     return req
@@ -90,7 +89,7 @@ def _build_report_request(
 
 def run_campaign_performance_report(
     authorization_data: AuthorizationData,
-    account_list: List[dict],  # full account objects
+    account_list: List[dict],
     start_date_str: str,
     end_date_str: str,
     out_dir: Path,
@@ -180,9 +179,14 @@ def run_campaign_performance_report(
             header = rows[header_idx]
             data_rows = []
 
-            for r in rows[header_idx + 1 :]:
+            for r in rows[header_idx + 1:]:
+                # stop at footer
                 if "Microsoft Corporation" in " ".join(r):
                     break
+
+                if not any(c.strip() for c in r):
+                    continue
+
                 data_rows.append(r)
 
             if not header_written:
@@ -191,7 +195,7 @@ def run_campaign_performance_report(
 
             if data_rows:
                 w.writerows(data_rows)
-                print(f"  - {len(data_rows)} rows added from {acct_name}.")
+                print(f"  + - {len(data_rows)} rows added from {acct_name}.")
             else:
                 print(f"  x - No data rows for {acct_name}. Skipping.")
 
@@ -237,6 +241,5 @@ def save_clean_report_only(raw_path: Path, headers, rows):
         w.writerows(rows)
 
     raw_path.unlink(missing_ok=True)
-    print(f"\nCleaned report saved to:\n {clean_path}\n")
 
     return clean_path
