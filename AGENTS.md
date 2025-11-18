@@ -3,13 +3,16 @@
 This repository supports AI contributions.  
 All AI agents must also follow the [CONTRIBUTING.md](CONTRIBUTING.md) guidelines.
 
-## Codex
+## AI Agents
+
+- **OpenAI (ChatGPT, GPT models, Codex)** – Architectural guidance, refactoring support, SOAP/WSDL debugging help; accesses the `codex` or `gpt` branches.
+- **GitHub Copilot** – Provides inline suggestions within IDE, assists with boilerplate and repetitive code; accesses the `copilot` branch.
 
 ### Branching
-- All Codex-generated changes must target the `codex` branch.
-- Temporary tasks are acceptable, but must be merged into `codex` first.
-- Codex PRs should never target `develop` or `main` directly.
-- After review, Codex changes are merged into `develop`.
+- All AI agent generated changes must target the `appropriate` branch as outlined above in *AI AGENTS*
+- Temporary tasks are acceptable, but must be merged into agent designated branch first.
+- AI PRs should never target `develop` or `main` directly.
+- After review, changes are merged into `develop`.
 
 ### Development Flow
 - The promotion path is: `codex → develop → main`.

@@ -10,12 +10,12 @@ import csv, pydoc, re, sys
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from tabulate import tabulate
 
 # -----------------------------
-# Builtins monkey-patch for input "exit"
+# monkey-patch input "exit"
 # -----------------------------
 def _custom_input(prompt: str = "") -> str:
     user_input = _original_input(prompt)
@@ -33,24 +33,7 @@ else:
 
 
 # -----------------------------
-# Micro-unit helpers
-# -----------------------------
-MICROS_PER_UNIT = Decimal("1000000")
-
-def micros_to_decimal(
-    micros: Optional[int | str],
-    quantize: Optional[Decimal] = None,
-    rounding=ROUND_HALF_UP,
-) -> Decimal:
-    if micros in (None, ""):
-        value = Decimal("0")
-    else:
-        value = Decimal(str(micros)) / MICROS_PER_UNIT
-    return value.quantize(quantize, rounding=rounding) if quantize else value
-
-
-# -----------------------------
-# Simple console / CSV output
+# console / CSV output
 # -----------------------------
 def sanitize_filename(name: str) -> str:
     return re.sub(r'[<>:"/\\|?*]', "", name)
@@ -93,7 +76,7 @@ def data_handling_options(
 
     mode = (preselected_output or "").strip().lower()
 
-    # If no preselected mode, fall back to the original simple prompt.
+    # interactive mode
     if not mode:
         print("How would you like to view the report?\n1. CSV\n2. Display table on screen\n")
         choice = input("Choose 1 or 2 ('exit' to quit): ").strip().lower()
@@ -126,12 +109,12 @@ def data_handling_options(
         display_table(table_data, headers, auto_view=auto_view)
         return
 
-    # Fallback: treat unknown mode as "table"
+    # fallback
     display_table(table_data, headers, auto_view=auto_view)
 
 
 # -----------------------------
-# Date utilities
+# dateutils
 # -----------------------------
 SUPPORTED_DATE_FORMATS = ("%Y-%m-%d", "%Y%m%d")
 
@@ -223,7 +206,7 @@ def get_timerange(force_single: bool = False) -> tuple[str, str, str, str]:
 
 
 # -----------------------------
-# Table printer for accounts
+# accounts table display
 # -----------------------------
 def print_accounts_table(items):
     """Display accounts with index numbers for user selection."""

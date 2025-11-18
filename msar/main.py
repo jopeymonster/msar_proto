@@ -61,11 +61,37 @@ def select_accounts(accounts: List[Dict], cli_arg: str | None) -> List[int]:
         print("Invalid selection. Try again.")
 
 
+def _prompt_yes_no(message: str, default: bool = True) -> bool:
+    """
+    Simple Y/N prompt that returns a boolean.
+    """
+    suffix = "Y/n" if default else "y/N"
+    while True:
+        resp = input(f"{message} ({suffix}): ").strip().lower()
+        if not resp:
+            return default
+        if resp in ("y", "yes"):
+            return True
+        if resp in ("n", "no"):
+            return False
+        print("Please enter Y or N.")
+
+
 def main():
     parser = argparse.ArgumentParser(prog="MSAdsReporter")
     parser.add_argument("--config", required=True)
     parser.add_argument("--account")
     parser.add_argument("--auto", action="store_true")
+    parser.add_argument(
+        "--mac",
+        choices=["include", "exclude"],
+        help="Include or exclude derived MAC column (default: include in interactive mode).",
+    )
+    parser.add_argument(
+        "--ctype",
+        choices=["include", "exclude"],
+        help="Include or exclude CampaignType column for campaign reports (default: include in interactive mode).",
+    )
     args = parser.parse_args()
 
     # ---- Authenticate ----
@@ -75,25 +101,39 @@ def main():
         f"\nAuthenticated. Environment: {meta['environment']} "
         f"(refresh token saved: {meta['has_refresh_token']})\n"
     )
-
-    # ---- Accounts ----
     accounts = list_user_accounts(authorization_data)
     print_accounts_table(accounts)
-
     selected_ids = select_accounts(accounts, args.account)
     selected_objs = [a for a in accounts if a["account_id"] in selected_ids]
 
-    # ---- Report selection ----
+    # ---- report opts ----
     print("\nAvailable Reports:\n1. Campaign Performance")
     choice = input("Enter report number (default 1): ").strip() or "1"
     print("Selected: Campaign Performance\n")
 
-    # ---- Output preference (before running reports) ----
+    # ---- dim toggles ----
+    if args.mac:
+        include_mac = args.mac == "include"
+    else:
+        include_mac = _prompt_yes_no(
+            "Include Marketing Attribution Code (MAC)?",
+            default=True,
+        )
+
+    if args.ctype:
+        include_campaign_type = args.ctype == "include"
+    else:
+        include_campaign_type = _prompt_yes_no(
+            "Include CampaignType?",
+            default=True,
+        )
+
+    # ---- output ----
     if args.auto:
         output_pref = "auto"
     else:
         print("How would you like to view the results when the report completes?")
-        print("1. Save as CSV")
+        print("1. Save CSV")
         print("2. Display table on screen")
         print("3. Save CSV and display table")
         view_choice = input("Choose 1, 2, or 3 (default 1): ").strip() or "1"
@@ -105,35 +145,37 @@ def main():
         else:
             output_pref = "csv"
 
-    # ---- Date selection ----
+    # ---- date ----
     _, start_date_str, end_date_str, seg_key_ignored = get_timerange()
 
-    # ---- Output dirs ----
+    # ---- output dirs ----
     out_dir = Path("output")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     now = datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_name = f"msar_campaign_performance_{now}.csv"
+    base_name = f"msar_campaign_performance_{now}"
+    raw_file_name = f"{base_name}_RAW.csv"
 
     print(f"\nRunning Campaign Performance report for {len(selected_objs)} account(s)...\n")
 
-    # ---- Run report ----
+    # ---- build report (merged RAW file in ./output) ----
     out_csv = run_campaign_performance_report(
         authorization_data=authorization_data,
         account_list=selected_objs,
         start_date_str=start_date_str,
         end_date_str=end_date_str,
+        include_campaign_type=include_campaign_type,
         out_dir=out_dir,
-        file_name=file_name,
+        file_name=raw_file_name,
     )
 
-    headers, rows = load_report_rows(out_csv)
+    headers, rows = load_report_rows(out_csv, include_mac=include_mac)
     if not rows:
         print("No data returned for selected range.")
         return
+    clean_path = save_clean_report_only(out_csv, headers, rows, base_name=base_name)
 
-    clean_path = save_clean_report_only(out_csv, headers, rows)
-
+    # ---- results ----
     data_handling_options(
         table_data=rows,
         headers=headers,
