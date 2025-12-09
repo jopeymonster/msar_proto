@@ -45,6 +45,7 @@ def _build_report_request(
     start_ymd: Tuple[str, str, str],
     end_ymd: Tuple[str, str, str],
     include_campaign_type: bool,
+    aggregation: str,
     report_name: str,
 ):
     factory = reporting_service.factory
@@ -54,7 +55,7 @@ def _build_report_request(
     req.ReportName = report_name
     req.Format = "Csv"
     req.ReturnOnlyCompleteData = False
-    req.Aggregation = "Daily"
+    req.Aggregation = aggregation.capitalize()
 
     scope = factory.create("AccountThroughCampaignReportScope")
     scope.AccountIds = {"long": [account_id]}
@@ -108,6 +109,7 @@ def run_campaign_performance_report(
     start_date_str: str,
     end_date_str: str,
     include_campaign_type: bool,
+    aggregation: str,
     out_dir: Path,
     file_name: str,
 ) -> Path:
@@ -154,6 +156,7 @@ def run_campaign_performance_report(
                 start_ymd=start_ymd,
                 end_ymd=end_ymd,
                 include_campaign_type=include_campaign_type,
+                aggregation=aggregation,
                 report_name=f"MSAR_{acct_id}",
             )
 

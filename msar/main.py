@@ -83,6 +83,11 @@ def main():
     parser.add_argument("--account")
     parser.add_argument("--auto", action="store_true")
     parser.add_argument(
+        "--timeperiod",
+        choices=["daily","weekly","monthly","yearly"],
+        help="Aggregation level for TimePeriod. Default is daily.",
+    )
+    parser.add_argument(
         "--mac",
         choices=["include", "exclude"],
         help="Include or exclude derived MAC column (default: include in interactive mode).",
@@ -128,6 +133,26 @@ def main():
             default=True,
         )
 
+    if args.timeperiod:
+        timeperiod = args.timeperiod.lower()
+    else:
+        print("\nSelect TimePeriod Aggregation: \n"
+              "1. Daily (default)\n"
+              "2. Weekly\n"
+              "3. Monthly\n"
+              "4. Yearly\n"
+              )
+        tp_choice = input("Choose 1-4 (default is 1): ").strip() or "1"
+
+        mapping = {
+            "1": "daily",
+            "2": "weekly",
+            "3": "monthly",
+            "4": "yearly",
+        }
+        timeperiod = mapping.get(tp_choice, "daily")
+    
+
     # ---- output ----
     if args.auto:
         output_pref = "auto"
@@ -165,6 +190,7 @@ def main():
         start_date_str=start_date_str,
         end_date_str=end_date_str,
         include_campaign_type=include_campaign_type,
+        aggregation=timeperiod,
         out_dir=out_dir,
         file_name=raw_file_name,
     )
@@ -174,6 +200,11 @@ def main():
         print("No data returned for selected range.")
         return
     clean_path = save_clean_report_only(out_csv, headers, rows, base_name=base_name)
+    try:
+        if out_dir.exists() and not any(out_dir.iterdir()):
+            out_dir.rmdir()
+    except Exception as e:
+        print(f"WARNING: Could not remove output directory: {e}")
 
     # ---- results ----
     data_handling_options(
